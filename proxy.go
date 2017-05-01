@@ -24,6 +24,7 @@ func main() {
         if err != nil {
             log.Panic(err)
         }
+        id += 1
         log.Println("New client: ", id)
         go handleClient(conn)
     }

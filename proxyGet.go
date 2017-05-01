@@ -17,6 +17,7 @@ func main() {
 
     proxyString := os.Args[1]
     proxyURL, err := url.Parse(proxyString)
+    fmt.Println(proxyURL)
     checkError(err)
     rawURL := os.Args[2]
     url, err := url.Parse(rawURL)
