@@ -52,7 +52,7 @@ type contact struct{
 	index int
 }
 
-type PriorityQueue[] *contact
+type PriorityQueue[]*contact
 
 func(pq PriorityQueue) Len() int {return len(pq)}
 
@@ -83,7 +83,7 @@ func (pq *PriorityQueue) Push(x interface{}) {
 		item.index = length
 		*pq = append(*pq, item)
 	}
-        
+
 }
 
 func (pq *PriorityQueue) Pop() interface{} {
@@ -100,5 +100,3 @@ func (pq *PriorityQueue) Pop() interface{} {
 
 
 // func(pq *PriorityQueue) insert
-
-

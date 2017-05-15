@@ -1,0 +1,19 @@
+package libpeerproxy
+
+// import (
+//     "net"
+// )
+
+type ProxyServerRPC struct {
+	proxyServer *ProxyServer
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// PING
+///////////////////////////////////////////////////////////////////////////////
+
+func (p *ProxyServerRPC) Ping(ping string, pong *string) error {
+    *pong = "pong"
+
+    return nil
+}

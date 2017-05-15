@@ -25,7 +25,7 @@ func NewProxyServer(ipaddr string, portnum int) *proxy_server {
 	p.ip = ipaddr
 	p.port = portnum
 	p.list = make(PriorityQueue, NumOfContacts)
-	
+
 	return p
 }
 
@@ -62,7 +62,7 @@ func (p *proxy_server) ping_peer(peerstr string) int{
 
 	if pong == "Active"{
 		return 0
-	} 
+	}
 
 	return 1
 
@@ -105,11 +105,11 @@ func (p *proxy_server) Ask(peer *contact){
 	if err!= nil{
 		log.Fatal("proxy_server GetContacts:", err)
 		return
-	} 
+	}
 
 	for _, contact := range response{
 		p.update(contact)
-	} 
+	}
 
 }
 
@@ -123,5 +123,5 @@ func (p *proxy_server) update(peerstr string){
 	duration := int64(elapse/time.Millisecond)
 	new_peer := &contact{address:peerstr, latency: duration}
 	heap.Push(&(p.list), new_peer)
-	
+
 }
