@@ -1,14 +1,28 @@
 package main
 
 import (
-	//"fmt"
+	"fmt"
 	"libpeerproxy"
 	//"net"
 )
 
 func main() {
-	libpeerproxy.NewProxyServer()
-	// host := net.ParseIP("localhost")
-	// contact := libpeerproxy.Contact{host, 7890, "localhost:7890"}
-	// p.DoPing(contact)
+	p := libpeerproxy.NewProxyServer()
+	host, err := libpeerproxy.ExternalIP()
+	if err != nil {
+		fmt.Println("ExternalIP :", err)
+	}
+	port := "7890"
+	addr := host + ":" + port
+	contact := libpeerproxy.Contact{host, port, addr, -1}
+	p.DoPing(contact)
+
+	//TODO: need to periodically update ContactList
+
+	// Every ProxyServer serves as a proxy at addr proxyServerAddr
+	go p.ServeAsProxy()
+
+	// Every ProxyServer peer also serve as a proxyRouter,
+	// only for routing requests of itself
+	p.ServerAsProxyRouter()
 }

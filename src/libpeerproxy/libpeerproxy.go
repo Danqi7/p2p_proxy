@@ -6,40 +6,38 @@ import (
 	"log"
 	"net/http"
     "net/rpc"
-	"strconv"
+	//"strconv"
 	"bytes"
 	"io"
-	"math/rand"
+	//"math/rand"
 	"net/url"
 	"strings"
+	"errors"
 	"time"
 )
 
 const (
-    RPCAddr             = "localhost:7890"
-    ProxyServerAddr     = "localhost:3128"
-    ProxyRouterAddr     = "localhost:3129"
+    RPCAddr             = ":7890"
+    ProxyServerAddr     = ":3128"
+    ProxyRouterAddr     = ":3129"
+	k					= 5
+	DefaultLatency		= -1
 )
 
 // a list of avaiable proxies, need to decide how to get
 // the global list with p2p later
-var PROXY_LIST = [2]string{"self", ProxyServerAddr}
-
-type Contact struct {
-    Host      	net.IP
-    Port    	int
-	Address		string
-}
+var PROXY_LIST = [2]string{"self", "10.105.99.145:3128"}
 
 type ProxyServer struct {
     SelfContact     Contact
-    ContactList     []Contact
+    ContactList     *ContactList
 }
 
 func NewProxyServer() *ProxyServer {
     laddr := RPCAddr
 	p := new(ProxyServer)
-    p.ContactList = make([]Contact, 0)
+    p.ContactList = new(ContactList)
+	p.ContactList.Init(k)
 
     // Set up RPC server
 	// NOTE: ProxyServerRPC is just a wrapper around ProxyServer. This type includes
@@ -47,7 +45,7 @@ func NewProxyServer() *ProxyServer {
 
 	s := rpc.NewServer()
 	s.Register(&ProxyServerRPC{p})
-	hostname, port, err := net.SplitHostPort(laddr)
+	_, port, err := net.SplitHostPort(laddr)
 	if err != nil {
 		return nil
 	}
@@ -63,25 +61,22 @@ func NewProxyServer() *ProxyServer {
 	// Run RPC server forever.
 	go http.Serve(l, nil)
 	// Add self contact
-	hostname, port, _ = net.SplitHostPort(l.Addr().String())
-	port_int, _ := strconv.Atoi(port)
-	ipAddrStrings, err := net.LookupHost(hostname)
-	var host net.IP
-	for i := 0; i < len(ipAddrStrings); i++ {
-		host = net.ParseIP(ipAddrStrings[i])
-		if host.To4() != nil {
-			break
-		}
+	host, err := ExternalIP()
+	if err != nil {
+		log.Println(err)
 	}
-	address := host.String() + ":" + strconv.Itoa(port_int)
-	p.SelfContact = Contact{host, port_int, address}
 
-    // Every ProxyServer serves as a proxy at addr proxyServerAddr
-    go p.ServeAsProxy()
+	// port := strconv.Atoi(ProxyServerAddr[1:])
+	address := host + ProxyServerAddr
+	p.SelfContact = Contact{host, port, address, DefaultLatency}
 
-    // Every ProxyServer peer also serve as a proxyRouter,
-    // only for routing requests of itself
-    p.ServerAsProxyRouter()
+
+	// Every ProxyServer serves as a proxy at addr proxyServerAddr
+	// go p.ServeAsProxy()
+	//
+	// // Every ProxyServer peer also serve as a proxyRouter,
+	// // only for routing requests of itself
+	// go p.ServerAsProxyRouter()
 
 	return p
 }
@@ -217,10 +212,11 @@ func (p *ProxyServer) RouteClient(client net.Conn) {
 
 	// decide whether to go from peer itself
 	// or go from the real proxy
-	t := time.Now()
-	var seed int64 = int64(t.Second())
-	rand.Seed(seed)
-	proxyIndex := rand.Intn(len(PROXY_LIST))
+	// t := time.Now()
+	// var seed int64 = int64(t.Second())
+	// rand.Seed(seed)
+	// proxyIndex := rand.Intn(len(PROXY_LIST))
+	proxyIndex := 1
 	// index is 0, go from peer itself
 	log.Println("index: ", proxyIndex)
 	if proxyIndex == 0 {
@@ -274,6 +270,17 @@ func (p *ProxyServer) ForwardFromItself(client net.Conn, method string, address 
 	io.Copy(client, server)
 }
 
+// TODO: Ask every contact in ContactList to return its own ContactList
+//Remove non-responding contact
+// func (p *ProxyServer) DoUpdateContactList() error {
+// }
+
+// TODO: Ask n number of contacts from input contact
+// func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
+//
+// }
+
+
 // ========= RPCs ==========//
 // func (p *ProxyServerRPC) Ping(ping *string, pong *string) {
 //
@@ -294,32 +301,37 @@ func (p *ProxyServer) ForwardFromItself(client net.Conn, method string, address 
 // 	return
 // }
 //
-func (p *ProxyServer) DoPing(contact Contact) int {
+func (p *ProxyServer) DoPing(contact Contact) error {
     address := contact.Address
-    path := rpc.DefaultRPCPath + strconv.Itoa(contact.Port)
+    path := rpc.DefaultRPCPath + contact.Port
 
     client, err := rpc.DialHTTPPath("tcp", address, path)
     if err != nil {
         log.Fatal("Dialing: ", err, address)
     }
 
-	ping := "ping"
-	pong := ""
+	pingMsg := new(PingMessage)
+	pingMsg.Sender = p.SelfContact
+	pingMsg.Msg = "ping"
 
-	err = client.Call("ProxyServerRPC.Ping", ping, &pong)
-	if err!= nil {
-			log.Fatal("ProxyServerRPC.Ping", err)
-			return 1
+	//Dial RPC and compute the latency
+	var pongMsg PongMessage
+	start := time.Now()
+
+	err = client.Call("ProxyServerRPC.Ping", pingMsg, &pongMsg)
+	if err != nil {
+			return errors.New("Failed to dial address: " + address)
 	}
 
-	fmt.Println(pong)
-	return 0
+	if pongMsg.Msg != "pong" {
+		return errors.New("Wrong pong message: " + pongMsg.Msg)
+	}
+
+	// update contact
+	elapse := time.Since(start)
+	duration := int64(elapse/time.Millisecond)
+	update := pongMsg.Sender
+	p.ContactList.UpdateContactWithLatency(&update, duration)
+
+	return nil
 }
-//
-// 	if pong == "Active"{
-// 		return 0
-// 	}
-//
-// 	return 1
-//
-// }
