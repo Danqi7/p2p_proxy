@@ -3,6 +3,7 @@ package libpeerproxy
 import (
     "errors"
     "sort"
+    "strings"
 )
 
 type Contact struct {
@@ -62,6 +63,30 @@ func (cl *ContactList) UpdateContactWithLatency(c *Contact, latency int64) error
 }
 
 // TODO: Remove contact
-// func (cl *ContactList) RemoveContact(c *Contact) error {
-//
-// }
+func (cl *ContactList) RemoveContact(c *Contact) error {
+    cl.sem <- 1
+    index := 0
+    for _, elem := range cl.Contacts:
+        if elem == *c:
+            append(cl.Contacts[:index], cl.Contacts[index +1:])
+            break
+        index ++
+}
+
+func (c *Contact) equals(cc *Contact) bool{
+    if strings.Compare(c.Address, cc.Address) == 0{
+        return true
+    }else{
+        return false
+    }
+}
+
+func (cl *ContactList) contains(c *Contact) bool{
+    for _, node := range cl.Contacts{
+        if node.equals(*c){
+            return true
+        }
+    }
+    return false
+}
+

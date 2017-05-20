@@ -272,13 +272,49 @@ func (p *ProxyServer) ForwardFromItself(client net.Conn, method string, address 
 
 // TODO: Ask every contact in ContactList to return its own ContactList
 //Remove non-responding contact
-// func (p *ProxyServer) DoUpdateContactList() error {
-// }
+func (p *ProxyServer) DoUpdateContactList() error {
+	for _, contact := range(p.ContactList){
+		nodes, _ := p.AskForContacts(contact, k)
+
+		for len(p.ContactList) < k{
+			for node, _ := range nodes{
+				if !p.ContactList.contains(node){
+					p.ContactList.UpdateContactWithoutLatency(&node)
+				}
+
+				if len(p.ContactList) == p.ContactList.Capacity {
+					return nil
+				}
+			}
+		}
+
+	}
+	return nil
+
+}
 
 // TODO: Ask n number of contacts from input contact
-// func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
-//
-// }
+func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
+	address := c.Address
+    path := rpc.DefaultRPCPath + c.Port
+
+    client, err := rpc.DialHTTPPath("tcp", address, path)
+    if err != nil {
+        log.Fatal("Dialing: ", err, address)
+    }
+	
+	request := new(AskContactsRequest)
+	request.Sender = p.SelfContact
+	request.Number = n
+	reply := new(AskContactsResult)
+	err = client.Call("ProxyServerRPC.AskForContacts", request, &reply)
+	if err != nil {
+			return nil, errors.New("Failed to call RPC AskForContacts on address: " + address)
+	}
+
+	return reply.Nodes, nil
+
+}
 
 
 // ========= RPCs ==========//

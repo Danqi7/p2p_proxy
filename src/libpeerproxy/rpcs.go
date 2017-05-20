@@ -49,6 +49,18 @@ type AskContactsResult struct {
     Nodes  []Contact
 }
 //TODO:
-// func (p *ProxyServerRPC) AskForContacts() error {
-//
-// }
+
+func (p *ProxyServerRPC) AskForContacts(request AskContactsRequest, reply *AskContactsRequest) error {
+    var length int
+    if len(request.Number) < len(p.ContactList){
+        length = len(request.Number)
+    }else{
+        length = len(p.ContactList)
+    }
+    for i=0; i < length; i++{
+        contact := *(p.ContactList[i])
+        reply.Nodes = append(reply.Nodes, contact)
+    }
+
+    return nil
+}
