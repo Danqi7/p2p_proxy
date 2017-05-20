@@ -45,13 +45,13 @@ func NewProxyServer() *ProxyServer {
 
 	s := rpc.NewServer()
 	s.Register(&ProxyServerRPC{p})
-	_, port, err := net.SplitHostPort(laddr)
+	_, rpcPort, err := net.SplitHostPort(laddr)
 	if err != nil {
 		return nil
 	}
 
-	s.HandleHTTP(rpc.DefaultRPCPath+port,
-		rpc.DefaultDebugPath+port)
+	s.HandleHTTP(rpc.DefaultRPCPath+rpcPort,
+		rpc.DefaultDebugPath+rpcPort)
 
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
@@ -68,7 +68,8 @@ func NewProxyServer() *ProxyServer {
 
 	// port := strconv.Atoi(ProxyServerAddr[1:])
 	address := host + ProxyServerAddr
-	p.SelfContact = Contact{host, port, address, DefaultLatency}
+    rpcAddress := host + RPCAddr
+	p.SelfContact = Contact{host, rpcPort, "3128", rpcAddress, address, DefaultLatency}
 
 
 	// Every ProxyServer serves as a proxy at addr proxyServerAddr
@@ -216,14 +217,16 @@ func (p *ProxyServer) RouteClient(client net.Conn) {
 	// var seed int64 = int64(t.Second())
 	// rand.Seed(seed)
 	// proxyIndex := rand.Intn(len(PROXY_LIST))
+    p.PrintContactList()
 	proxyIndex := 1
+    proxyIndex -= 1
 	// index is 0, go from peer itself
 	log.Println("index: ", proxyIndex)
 	if proxyIndex == 0 {
 		p.ForwardFromItself(client, method, address, b)
 	} else {
 		// otherwise go from the real proxy
-		p.ForwardFromProxy(PROXY_LIST[proxyIndex], client, method, address, b)
+		p.ForwardFromProxy(p.ContactList.Contacts[proxyIndex].ProxyAddr, client, method, address, b)
 	}
 }
 func (p *ProxyServer) ForwardFromProxy(proxyString string, client net.Conn, method string, address string, b [1024]byte) {
@@ -273,36 +276,44 @@ func (p *ProxyServer) ForwardFromItself(client net.Conn, method string, address 
 // TODO: Ask every contact in ContactList to return its own ContactList
 //Remove non-responding contact
 func (p *ProxyServer) DoUpdateContactList() error {
-	for _, contact := range(p.ContactList){
-		nodes, _ := p.AskForContacts(contact, k)
+    shortlist := make([]Contact, 0)
+	for _, contact := range p.ContactList.Contacts {
+		nodes, err := p.AskForContacts(contact, k)
 
-		for len(p.ContactList) < k{
-			for node, _ := range nodes{
-				if !p.ContactList.contains(node){
-					p.ContactList.UpdateContactWithoutLatency(&node)
-				}
+        if err != nil {
+            // remove this contact
+            p.ContactList.RemoveContact(&contact)
+            continue
+        }
 
-				if len(p.ContactList) == p.ContactList.Capacity {
-					return nil
-				}
-			}
-		}
-
+        for _, node := range nodes {
+            shortlist = append(shortlist, node)
+        }
 	}
-	return nil
 
+    index := 0
+    for len(p.ContactList.Contacts) < p.ContactList.Capacity && index < len(shortlist){
+        // add node from shortlist
+        c := shortlist[index]
+        p.ContactList.UpdateContactWithoutLatency(&c)
+
+        index += 1
+    }
+
+	return nil
 }
 
 // TODO: Ask n number of contacts from input contact
 func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
-	address := c.Address
-    path := rpc.DefaultRPCPath + c.Port
+	address := c.RPCAddr
+    path := rpc.DefaultRPCPath + c.RPCPort
 
     client, err := rpc.DialHTTPPath("tcp", address, path)
     if err != nil {
         log.Fatal("Dialing: ", err, address)
     }
-	
+
+    start := time.Now()
 	request := new(AskContactsRequest)
 	request.Sender = p.SelfContact
 	request.Number = n
@@ -312,34 +323,20 @@ func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
 			return nil, errors.New("Failed to call RPC AskForContacts on address: " + address)
 	}
 
-	return reply.Nodes, nil
+    // update contact
+	elapse := time.Since(start)
+	duration := int64(elapse/time.Millisecond)
+	update := reply.Sender
 
+	p.ContactList.UpdateContactWithLatency(&update, duration)
+
+    log.Println("AskForContacts:", reply.Nodes)
+	return reply.Nodes, nil
 }
 
-
-// ========= RPCs ==========//
-// func (p *ProxyServerRPC) Ping(ping *string, pong *string) {
-//
-// }
-//
-// // ========= RPCs ==========//
-// func (p *ProxyServer) PingPeers() {
-// 	length := list.Len()
-// 	for i := 0; i < length; i++ {
-// 		peer := list[i]
-// 		res := p.ping_peer(peer.address)
-//
-// 		if res != 0 {
-// 			heap.Remove(&(p.list), peer.index)
-// 		}
-// 	}
-//
-// 	return
-// }
-//
 func (p *ProxyServer) DoPing(contact Contact) error {
-    address := contact.Address
-    path := rpc.DefaultRPCPath + contact.Port
+    address := contact.RPCAddr
+    path := rpc.DefaultRPCPath + contact.RPCPort
 
     client, err := rpc.DialHTTPPath("tcp", address, path)
     if err != nil {
@@ -370,4 +367,12 @@ func (p *ProxyServer) DoPing(contact Contact) error {
 	p.ContactList.UpdateContactWithLatency(&update, duration)
 
 	return nil
+}
+
+func (p *ProxyServer) PrintContactList() {
+    log.Println("=========Current ContactList=========")
+    for _, con := range p.ContactList.Contacts {
+        log.Println(con.ProxyAddr)
+    }
+    log.Println("=========Current ContactList=========")
 }

@@ -4,12 +4,15 @@ import (
     "errors"
     "sort"
     "strings"
+    "log"
 )
 
 type Contact struct {
     Host      	string
-    Port    	string
-	Address		string
+    RPCPort    	string
+    ProxyPort   string
+	RPCAddr 	string
+    ProxyAddr   string
     Latency     int64
 }
 
@@ -32,6 +35,15 @@ func (cl *ContactList) UpdateContactWithoutLatency(c *Contact) error {
 // Update contact with given latency
 func (cl *ContactList) UpdateContactWithLatency(c *Contact, latency int64) error {
     cl.sem <- 1
+    log.Println("UpdateContactWithLatency: ", c)
+    // if contact already in ContactList, remove it and then re-insert
+    if cl.Contains(c) {
+        log.Println("Contains!!!UpdateContactWithLatency: ", c)
+        <- cl.sem
+        cl.RemoveContact(c)
+        cl.UpdateContactWithLatency(c, latency)
+        return nil
+    }
 
     if len(cl.Contacts) >= cl.Capacity {
         <- cl.sem
@@ -65,28 +77,39 @@ func (cl *ContactList) UpdateContactWithLatency(c *Contact, latency int64) error
 // TODO: Remove contact
 func (cl *ContactList) RemoveContact(c *Contact) error {
     cl.sem <- 1
-    index := 0
-    for _, elem := range cl.Contacts:
-        if elem == *c:
-            append(cl.Contacts[:index], cl.Contacts[index +1:])
+    found := 0
+
+    for index, con := range cl.Contacts {
+        if con.equals(c) {
+            cl.Contacts = append(cl.Contacts[:index], cl.Contacts[index+1:]...)
+            found = 1
             break
-        index ++
+        }
+    }
+
+    if found == 0 {
+        <- cl.sem
+        return errors.New("Trying to remove a non-existen contact in ContactList!")
+    }
+
+    log.Println("RemoveContact: ", cl.Contacts)
+    <-cl.sem
+    return nil
 }
 
 func (c *Contact) equals(cc *Contact) bool{
-    if strings.Compare(c.Address, cc.Address) == 0{
+    if strings.Compare(c.RPCAddr, cc.RPCAddr) == 0 {
         return true
-    }else{
+    } else {
         return false
     }
 }
 
-func (cl *ContactList) contains(c *Contact) bool{
-    for _, node := range cl.Contacts{
-        if node.equals(*c){
+func (cl *ContactList) Contains(c *Contact) bool{
+    for _, node := range cl.Contacts {
+        if node.equals(c){
             return true
         }
     }
     return false
 }
-
