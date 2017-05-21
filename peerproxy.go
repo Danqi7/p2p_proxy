@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"libpeerproxy"
-	"time"
 	"log"
 	"os"
+	"time"
 )
 
 func main() {
@@ -33,14 +33,14 @@ func main() {
 	updateCh := make(chan bool)
 	go func() {
 		for {
-			time.Sleep(5 * time.Second) // set 5 seconds for testing
+			time.Sleep(3600 * time.Second) // per hour
 			updateCh <- true
 		}
 	}()
 
 	go func() {
 		for {
-			update := <- updateCh
+			update := <-updateCh
 			if update == true {
 				p.ContactList.PrintContactList()
 
