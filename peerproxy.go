@@ -5,16 +5,23 @@ import (
 	"libpeerproxy"
 	"time"
 	"log"
+	"os"
 	//"net"
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run peerproxy.go [peer host]")
+		return
+	}
+
 	p := libpeerproxy.NewProxyServer()
 	host, err := libpeerproxy.ExternalIP()
 	if err != nil {
 		fmt.Println("ExternalIP :", err)
 	}
-
+	fmt.Println(host)
+	host = os.Args[1]
 	port := "7890"
 	proxyPort := "3128"
 	addr := host + ":" + port
@@ -35,12 +42,12 @@ func main() {
 		for {
 			update := <- updateCh
 			if update == true {
-				log.Println("===========update============")
+				// log.Println("===========update============")
 				err := p.DoUpdateContactList()
 				if err != nil {
 					log.Println("Error DoUpdateContactList: ", err.Error())
 				}
-				log.Println("===========update============")
+				// log.Println("===========update============")
 			}
 		}
 	}()

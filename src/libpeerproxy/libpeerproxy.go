@@ -9,7 +9,7 @@ import (
 	//"strconv"
 	"bytes"
 	"io"
-	//"math/rand"
+	"math/rand"
 	"net/url"
 	"strings"
 	"errors"
@@ -213,16 +213,17 @@ func (p *ProxyServer) RouteClient(client net.Conn) {
 
 	// decide whether to go from peer itself
 	// or go from the real proxy
-	// t := time.Now()
-	// var seed int64 = int64(t.Second())
-	// rand.Seed(seed)
-	// proxyIndex := rand.Intn(len(PROXY_LIST))
-    p.PrintContactList()
-	proxyIndex := 1
+	t := time.Now()
+	var seed int64 = int64(t.Second())
+	rand.Seed(seed)
+    // TODO: read the length of ContactList need to be atomic
+	proxyIndex := rand.Intn(len(p.ContactList.Contacts))
     proxyIndex -= 1
+    p.PrintContactList()
+    // proxyIndex := 0
 	// index is 0, go from peer itself
-	log.Println("index: ", proxyIndex)
-	if proxyIndex == 0 {
+	// log.Println("~~~~~~~index: ", proxyIndex)
+	if proxyIndex == -1 {
 		p.ForwardFromItself(client, method, address, b)
 	} else {
 		// otherwise go from the real proxy
@@ -235,6 +236,8 @@ func (p *ProxyServer) ForwardFromProxy(proxyString string, client net.Conn, meth
 	server, err := net.Dial("tcp", proxyString)
 	if err != nil {
 		log.Println("forwardFromProxy Error: ", err)
+        // TODO: remove Error producing peer
+        // p.RemoveContact
 		return
 	}
 
@@ -330,7 +333,7 @@ func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
 
 	p.ContactList.UpdateContactWithLatency(&update, duration)
 
-    log.Println("AskForContacts:", reply.Nodes)
+    // log.Println("AskForContacts:", reply.Nodes)
 	return reply.Nodes, nil
 }
 

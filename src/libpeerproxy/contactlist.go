@@ -4,7 +4,7 @@ import (
     "errors"
     "sort"
     "strings"
-    "log"
+    //"log"
 )
 
 type Contact struct {
@@ -35,10 +35,10 @@ func (cl *ContactList) UpdateContactWithoutLatency(c *Contact) error {
 // Update contact with given latency
 func (cl *ContactList) UpdateContactWithLatency(c *Contact, latency int64) error {
     cl.sem <- 1
-    log.Println("UpdateContactWithLatency: ", c)
+    //log.Println("UpdateContactWithLatency: ", c)
     // if contact already in ContactList, remove it and then re-insert
     if cl.Contains(c) {
-        log.Println("Contains!!!UpdateContactWithLatency: ", c)
+        //log.Println("Contains!!!UpdateContactWithLatency: ", c)
         <- cl.sem
         cl.RemoveContact(c)
         cl.UpdateContactWithLatency(c, latency)
@@ -92,7 +92,7 @@ func (cl *ContactList) RemoveContact(c *Contact) error {
         return errors.New("Trying to remove a non-existen contact in ContactList!")
     }
 
-    log.Println("RemoveContact: ", cl.Contacts)
+    //log.Println("RemoveContact: ", cl.Contacts)
     <-cl.sem
     return nil
 }
