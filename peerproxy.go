@@ -6,7 +6,6 @@ import (
 	"time"
 	"log"
 	"os"
-	//"net"
 )
 
 func main() {
@@ -20,7 +19,8 @@ func main() {
 	if err != nil {
 		fmt.Println("ExternalIP :", err)
 	}
-	fmt.Println(host)
+	fmt.Println("My own IP Address: " + host)
+
 	host = os.Args[1]
 	port := "7890"
 	proxyPort := "3128"
@@ -29,7 +29,7 @@ func main() {
 	contact := libpeerproxy.Contact{host, port, proxyPort, addr, proxyAddr, -1}
 	go p.DoPing(contact)
 
-	//TODO: need to periodically update ContactList
+	// periodically update ContactList
 	updateCh := make(chan bool)
 	go func() {
 		for {
@@ -42,12 +42,12 @@ func main() {
 		for {
 			update := <- updateCh
 			if update == true {
-				// log.Println("===========update============")
+				p.ContactList.PrintContactList()
+
 				err := p.DoUpdateContactList()
 				if err != nil {
 					log.Println("Error DoUpdateContactList: ", err.Error())
 				}
-				// log.Println("===========update============")
 			}
 		}
 	}()

@@ -4,7 +4,7 @@ import (
     "errors"
     "sort"
     "strings"
-    //"log"
+    "log"
 )
 
 type Contact struct {
@@ -97,6 +97,28 @@ func (cl *ContactList) RemoveContact(c *Contact) error {
     return nil
 }
 
+// Remove a contact in ContactList given the proxy address
+func (cl *ContactList) RemoveContactWithProxyAddr(proxyAddr string) error {
+    cl.sem <- 1
+    found := 0
+
+    for index, con := range cl.Contacts {
+        if strings.Compare(con.ProxyAddr, proxyAddr) == 0 {
+            cl.Contacts = append(cl.Contacts[:index], cl.Contacts[index+1:]...)
+            found = 1
+            break
+        }
+    }
+
+    if found == 0 {
+        <- cl.sem
+        return errors.New("Trying to remove a non-existen contact in ContactList!")
+    }
+
+    <-cl.sem
+    return nil
+}
+
 func (c *Contact) equals(cc *Contact) bool{
     if strings.Compare(c.RPCAddr, cc.RPCAddr) == 0 {
         return true
@@ -112,4 +134,34 @@ func (cl *ContactList) Contains(c *Contact) bool{
         }
     }
     return false
+}
+
+func (cl *ContactList) NumberOfContacts() int {
+    cl.sem <- 1
+
+    n := len(cl.Contacts)
+
+    <- cl.sem
+    return n
+}
+
+func (cl *ContactList) ContactAtIndex(index int) *Contact {
+    cl.sem <- 1
+
+    if index < len(cl.Contacts) {
+        c := cl.Contacts[index]
+        <- cl.sem
+        return &c
+    } else {
+        <- cl.sem
+        return nil
+    }
+}
+
+func (cl *ContactList) PrintContactList() {
+    log.Println("=========Current ContactList=========")
+    for _, con := range cl.Contacts {
+        log.Println(con.ProxyAddr)
+    }
+    log.Println("=========Current ContactList=========")
 }

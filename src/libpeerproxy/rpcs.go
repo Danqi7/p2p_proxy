@@ -49,7 +49,6 @@ type AskContactsResult struct {
 	Sender Contact
     Nodes  []Contact
 }
-//TODO:
 
 func (p *ProxyServerRPC) AskForContacts(request AskContactsRequest, reply *AskContactsResult) error {
     var length int
