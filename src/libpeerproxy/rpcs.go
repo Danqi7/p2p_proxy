@@ -27,7 +27,7 @@ func (p *ProxyServerRPC) Ping(ping PingMessage, pong *PongMessage) error {
         return errors.New("Wrong ping msg")
     }
 
-    log.Println("!!!!!!=================GET A PING!=================!!!!!!")
+    log.Println("=================GET A PING!================= FROM：" + ping.Sender.Host)
     pong.Sender = p.proxyServer.SelfContact
     pong.Msg = "pong"
 

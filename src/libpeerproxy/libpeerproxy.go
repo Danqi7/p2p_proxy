@@ -52,7 +52,7 @@ func NewProxyServer() *ProxyServer {
 
 	s.HandleHTTP(rpc.DefaultRPCPath+rpcPort,
 		rpc.DefaultDebugPath+rpcPort)
-
+    log.Println("servering RPC: " + rpc.DefaultRPCPath+rpcPort)
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		log.Fatal("Listen: ", err)
@@ -136,6 +136,11 @@ func (p *ProxyServer) HandleClient(client net.Conn) {
 	log.Printf("%s", b[:n])
 
 	var method, host, address string
+    index := bytes.IndexByte(b[:], '\n')
+    if index == -1 {
+        log.Println("no newline char detected in the request, simply return")
+        return
+    }
 	fmt.Sscanf(string(b[:bytes.IndexByte(b[:], '\n')]), "%s%s", &method, &host)
 	hostPortURL, err := url.Parse(host)
 	if err != nil {
@@ -208,8 +213,15 @@ func (p *ProxyServer) RouteClient(client net.Conn) {
 	t := time.Now()
 	var seed int64 = int64(t.Second())
 	rand.Seed(seed)
-	proxyIndex := rand.Intn(p.ContactList.NumberOfContacts())
-    proxyIndex -= 1
+    size := p.ContactList.NumberOfContacts()
+    var proxyIndex int
+    if size == 0 {
+        proxyIndex = -1
+    } else {
+        proxyIndex = rand.Intn(size)
+        proxyIndex -= 1
+    }
+
 
 	// index is -1, go from peer itself
 	if proxyIndex == -1 {
@@ -328,10 +340,12 @@ func (p *ProxyServer) AskForContacts(c Contact, n int) ([]Contact, error) {
 }
 
 func (p *ProxyServer) DoPing(contact Contact) error {
+    //log.Println("yoooooooo!")
     address := contact.RPCAddr
     path := rpc.DefaultRPCPath + contact.RPCPort
-
+    //log.Println("hahaha " + address + " " + path)
     client, err := rpc.DialHTTPPath("tcp", address, path)
+
     if err != nil {
         // remove Error producing peer
         p.ContactList.RemoveContact(&contact)

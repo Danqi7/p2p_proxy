@@ -6,7 +6,10 @@ import (
 	"log"
 	"os"
 	"time"
+	//"strconv"
 )
+
+// const UPDATETIME = 3600 // default per hour an update
 
 func main() {
 	if len(os.Args) < 2 {
@@ -31,9 +34,16 @@ func main() {
 
 	// periodically update ContactList
 	updateCh := make(chan bool)
+	// var updateTime time.Duration
+	// if len(os.Args) > 2 {
+	// 	updateTime, _ = strconv.Atoi(os.Args[2])
+	// } else {
+	// 	updateTime = UPDATETIME
+	// }
+
 	go func() {
 		for {
-			time.Sleep(3600 * time.Second) // per hour
+			time.Sleep(60 * time.Second) // customized for testing purpose
 			updateCh <- true
 		}
 	}()
