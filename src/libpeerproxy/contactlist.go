@@ -163,5 +163,5 @@ func (cl *ContactList) PrintContactList() {
     for _, con := range cl.Contacts {
         log.Println(con.ProxyAddr)
     }
-    log.Println("=========Current ContactList=========")
+    log.Println("=================END=================")
 }
